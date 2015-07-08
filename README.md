@@ -1,6 +1,6 @@
 # Anomaly Detection
 
-##Excerp from Twitters anomally detection page
+##Excerpt from Twitter's anomally detection page
 
 "AnomalyDetection is an open-source R package to detect anomalies which is
 robust, from a statistical standpoint, in the presence of seasonality and an
