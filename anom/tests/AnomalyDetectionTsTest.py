@@ -17,7 +17,7 @@ class Test(unittest.TestCase):
 
         ano = AnomalyDetectionTSSTL()
         dates = [datetime(2012, 5, 1), datetime(2012, 5, 2), datetime(2012, 5, 3)]
-        vals = ["a","vb","c"]
+        vals = [1,2,3]
         ts = Series(vals, dates)
         ret = ano.AnomalyDetectionTs(ts)
 
