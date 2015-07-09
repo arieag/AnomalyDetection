@@ -8,12 +8,30 @@ import pandas as pd
 import warnings
 
 
+def get_gran(tseries):
+
+    tseries.sort()
+    lastdelta = tseries.index[-1] - tseries.index[-2]
+    gran = lastdelta.total_seconds()
+
+    if gran >= 86400:
+        return "day"
+    elif gran >= 3600:
+        return "hr"
+    elif gran >= 60:
+        return "min"
+    elif gran >=1:
+        return "sec"
+    else:
+        return "ms"
+
+
 class AnomalyDetection(object):
     '''
     classdocs
     '''
 
-    def __init__(self, params=None):
+    def __init__(self):
         '''
         Constructor
 
@@ -22,9 +40,7 @@ class AnomalyDetection(object):
 
     def AnomalyDetectionTs(self, x, max_anoms = 0.10, direction = 'pos',
                                alpha = 0.05, only_last = None, threshold = 'None',
-                               e_value = False, longterm = False, piecewise_median_period_weeks = 2, plot = False,
-                               y_log = False, xlabel = '', ylabel = 'count',
-                               title = None, verbose=False):
+                               e_value = False, longterm = False, piecewise_median_period_weeks = 2, verbose=False):
 
         if not isinstance(x, pd.Series):
             raise ValueError("data must be a single Time Series.")
@@ -51,8 +67,47 @@ class AnomalyDetection(object):
         if threshold not in ('None','med_max','p95','p99'):
             raise ValueError("threshold options are: None | med_max | p95 | p99.")
 
-        if isinstance(e_value, bool):
-            raise ValueError("e_value must be either TRUE (T) or FALSE (F)")
+        if not isinstance(e_value, bool):
+            raise ValueError("e_value must be either True or False")
+
+        if not isinstance(longterm, bool):
+            raise ValueError("longterm must be either True or False")
+
+        if piecewise_median_period_weeks < 2:
+            raise ValueError("piecewise_median_period_weeks must be at greater than 2 weeks")
+
+        # -- Main analysis: Perform S-H-ESD
+        # Derive number of observations in a single day.
+        # Although we derive this in S-H-ESD, we also need it to be minutley later on so we do it here first.
+        gran = get_gran(x)
+
+
+        if gran == "day":
+            num_days_per_line = 7
+            if only_last != None and only_last == "hr":
+                only_last = "day"
+        else:
+            num_days_per_line = 1
+
+        # Aggregate data to minutely if secondly
+        if gran == "sec":
+            x = x.resample("1Min", how="sum")
+
+        period =  {
+                  'min' : 1440,
+                  'hr' : 24,
+                  # if the data is daily, then we need to bump the period to weekly to get multiple examples
+                  'day' : 7
+                  }[gran]
+
+        num_obs = len(x)
+
+        if max_anoms < 1/num_obs:
+            max_anoms = 1/num_obs
+
+
+
+
 
 
         return None

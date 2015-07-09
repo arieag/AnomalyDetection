@@ -4,7 +4,7 @@ Created on 9/07/2015
 @author: aagranonik
 '''
 import unittest
-from anom.AnomalyDetectionTs import AnomalyDetectionTSSTL
+from anom.AnomalyDetection import AnomalyDetection
 from pandas import Series
 from datetime import datetime
 import numpy as np
@@ -15,7 +15,7 @@ class Test(unittest.TestCase):
     def testAnomalyDetectionTs(self):
 
 
-        ano = AnomalyDetectionTSSTL()
+        ano = AnomalyDetection()
         dates = [datetime(2012, 5, 1), datetime(2012, 5, 2), datetime(2012, 5, 3)]
         vals = [1,2,3]
         ts = Series(vals, dates)
