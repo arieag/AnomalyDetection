@@ -9,6 +9,9 @@ import warnings
 import math
 import numpy as np
 import datetime
+import stl
+
+
 
 def get_gran(tseries):
 
@@ -28,6 +31,32 @@ def get_gran(tseries):
         return "ms"
 
 
+def detect_anoms(data, k = 0.49, alpha = 0.05, num_obs_per_period = None,
+                         use_decomp = True, use_esd = False, one_tail = True,
+                         upper_tail = True, verbose = False):
+
+
+    if num_obs_per_period == None:
+        raise ValueError("must supply period length for time series decomposition")
+
+
+    num_obs = len(data)
+
+    if num_obs < num_obs_per_period * 2:
+        raise ValueError("Anom detection needs at least 2 periods worth of data")
+
+    data = data.dropna()
+
+    data_decomp = stl.stl(data, ns=num_obs_per_period, ni=2)
+
+    data_decomp.to_csv("c:/temp/stlpy.csv")
+    print data_decomp
+
+
+    pass
+
+
+
 class AnomalyDetection(object):
     '''
     classdocs
@@ -36,7 +65,6 @@ class AnomalyDetection(object):
     def __init__(self):
         '''
         Constructor
-
         '''
 
 
@@ -51,17 +79,14 @@ class AnomalyDetection(object):
             if x.dtype not in numerics:
                 raise ValueError("data must be a time series with numeric values")
 
-
         if max_anoms > 0.49:
             raise ValueError("max_anoms must be less than 50% of the data points")
 
         if direction not in ('pos','neg','both'):
             raise ValueError("direction options are: pos | neg | both.")
 
-
-        if 0.01 <= alpha or alpha <= 0.1:
-            warnings.warn("Tried to access a position that doesn't exist in array inside some_function.",RuntimeWarning)
-
+        if not (alpha >= 0.01 or alpha <= 0.1):
+            warnings.warn("Warning: alpha is the statistical signifigance, and is usually between 0.01 and 0.1")
 
         if only_last != None and only_last not in ('day','hr'):
             raise ValueError("only_last must be either 'day' or 'hr'")
@@ -112,25 +137,38 @@ class AnomalyDetection(object):
 
             if gran == "day":
                 # STL needs 2*period + 1 observations
-                num_obs_in_period = period*piecewise_median_period_weeks + 1
-                num_days_in_period = (7*piecewise_median_period_weeks) + 1
+                num_obs_in_period = period * piecewise_median_period_weeks + 1
+                num_days_in_period = (7 * piecewise_median_period_weeks) + 1
             else:
-                num_obs_in_period = period*7*piecewise_median_period_weeks
-                num_days_in_period = (7*piecewise_median_period_weeks)
-
+                num_obs_in_period = period * 7 * piecewise_median_period_weeks
+                num_days_in_period = (7 * piecewise_median_period_weeks)
 
             last_date = x.index[-1]
 
-            for i in xrange(0, len(x)-1, num_obs_in_period):
+            for i in xrange(0, len(x) - 1, num_obs_in_period):
                 start_date = x.index[i]
                 b = start_date + datetime.timedelta(days = num_days_in_period)
                 end_date = np.min(start_date.value, b.value)
                 if (end_date - start_date).days == num_days_in_period:
                     all_data[(i / num_obs_in_period)] = x[x.index[x.index >= start_date and x.index < end_date]]
                 else:
-                    all_data[(i / num_obs_in_period)] = x[x.index[x.index >= (last_date- datetime.timedelta(days = num_days_in_period)) and x.index < last_date]]
+                    all_data[(i / num_obs_in_period)] = x[x.index[x.index >= (last_date- datetime.timedelta(days = num_days_in_period))
+                                                                  and x.index < last_date]]
         else:
             all_data[0] = x
+
+
+        for k,v in all_data.iteritems():
+
+            anomaly_direction = {'pos':{'one_tail':True,'upper_tail':True},\
+                                 'neg':{'one_tail':True,'upper_tail':False},\
+                                 'both':{'one_tail':False,'upper_tail':True},\
+                                 }[direction]
+
+            # detect_anoms actually performs the anomaly detection and returns the results in a list containing the anomalies
+            # as well as the decomposed components of the time series for further analysis.
+            s_h_esd_timestamps = detect_anoms(v, k=max_anoms, alpha=alpha, num_obs_per_period=period, use_decomp=True, use_esd=False,\
+                                       one_tail=anomaly_direction['one_tail'], upper_tail=anomaly_direction['upper_tail'], verbose=verbose)
 
 
 
