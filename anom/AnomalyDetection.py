@@ -9,9 +9,12 @@ import warnings
 import math
 import numpy as np
 import datetime
-import stl
+from stl import stl
+from numpy import mean, absolute
 
 
+def mad(data, axis=None):
+    return mean(absolute(data - mean(data, axis)), axis)
 
 def get_gran(tseries):
 
@@ -47,7 +50,63 @@ def detect_anoms(data, k = 0.49, alpha = 0.05, num_obs_per_period = None,
 
     data = data.dropna()
 
-    data_decomp = stl.stl(data, ns=num_obs_per_period, ni=2)
+    data_decomp = stl(data, ns=num_obs_per_period, ni=2)
+
+    md = np.median(data.values)
+    # Remove the seasonal component, and the median of the data to create the univariate remainder
+    data = data_decomp["seasonal"] - md
+    # Store the smoothed seasonal component, plus the trend component for use in determining the "expected values" option
+    data_decomp = data_decomp["trend"] - data_decomp["seasonal"]
+
+    max_outliers = np.round(num_obs*k)
+
+    if max_outliers == 0:
+        raise ValueError("With longterm=TRUE, AnomalyDetection splits the data into 2 week periods by default. You have " + str( num_obs) +\
+                          " observations in a period, which is too few. Set a higher piecewise_median_period_weeks.")
+
+    n = len(data)
+
+    r_idx = data.index[0:max_outliers-1]
+
+    num_anoms = 0
+
+    for i in xrange(0, max_outliers-1):
+        if one_tail:
+            if upper_tail:
+                ares = data - np.median(data.values)
+            else:
+                ares = np.median(data.values) - data
+        else:
+            ares = np.abs(data.values - np.median(data.values))
+
+        data_sigma = mad(data.values)
+        if data_sigma == 0:
+            break
+
+        ares = ares/data_sigma
+        R = max(ares)
+
+        temp_max_idx = [k for k in ares if k == R]
+
+        r_idx[i] = data[temp_max_idx]
+
+        data = [data[j] for j in xrange(0, len(data)) if data[j] != r_idx[j]]
+
+
+        '''## Compute critical value.
+        if(one_tail){
+          p <- 1 - alpha/(n-i+1)
+        } else {
+          p <- 1 - alpha/(2*(n-i+1))
+        }
+
+        t <- qt(p,(n-i-1L))
+        lam <- t*(n-i) / sqrt((n-i-1+t**2)*(n-i+1))
+
+        if(R > lam)
+          num_anoms <- i
+        '''
+
 
     data_decomp.to_csv("c:/temp/stlpy.csv")
     print data_decomp
